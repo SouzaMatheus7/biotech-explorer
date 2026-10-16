@@ -1,24 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { GameApp } from "../game/GameApp";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Roube um Micróbio — Jogo 3D de Biotecnologia" },
+      { name: "description", content: "Jogo 3D educativo: personalize seu tripulante e roube micróbios respondendo desafios de biotecnologia." },
+      { property: "og:title", content: "Roube um Micróbio — Jogo 3D de Biotecnologia" },
+      { property: "og:description", content: "Personalize seu tripulante e vença as fases de biotecnologia." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: GameApp,
 });
-
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
