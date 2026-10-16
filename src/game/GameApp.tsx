@@ -5,7 +5,8 @@ import * as THREE from "three";
 import { useRef } from "react";
 import { COLORS, HATS, PHASES, POINTS, type Look, type Challenge } from "./data";
 import { Crewmate } from "./Crewmate";
-import { World, type Target } from "./World";
+import { World, MicrobeModel, type Target } from "./World";
+import type { MicrobeType } from "./data";
 
 type Screen = "menu" | "custom" | "about" | "intro" | "play" | "win";
 const TEAM = ["Arthur Gonçalves", "Cristiano Ricardo", "Henrique", "João Gabriel", "Matheus Souza"];
@@ -14,6 +15,22 @@ function Spinner({ look }: { look: Look }) {
   const g = useRef<THREE.Group>(null);
   useFrame((_, d) => { if (g.current) g.current.rotation.y += d * 0.8; });
   return <group ref={g}><Crewmate look={look} /></group>;
+}
+
+function MicrobeSpin({ type, color }: { type: MicrobeType; color: string }) {
+  const g = useRef<THREE.Group>(null);
+  useFrame((_, d) => { if (g.current) { g.current.rotation.y += d; g.current.rotation.x += d * 0.3; } });
+  return <group ref={g} scale={1.6}><MicrobeModel type={type} color={color} /></group>;
+}
+
+function MicrobePreview({ type, color }: { type: MicrobeType; color: string }) {
+  return (
+    <Canvas camera={{ position: [0, 0, 4], fov: 40 }} dpr={[1, 2]}>
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[3, 4, 5]} intensity={1.5} />
+      <MicrobeSpin type={type} color={color} />
+    </Canvas>
+  );
 }
 
 function Preview({ look }: { look: Look }) {
