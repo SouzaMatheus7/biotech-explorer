@@ -31,7 +31,7 @@ function Preview({ look }: { look: Look }) {
 
 export function GameApp() {
   const [screen, setScreen] = useState<Screen>("menu");
-  const [look, setLook] = useState<Look>({ color: COLORS[0], hat: "folha", name: "Cientista" });
+  const [look, setLook] = useState<Look>({ color: COLORS[0]!, hat: "folha", name: "Cientista" });
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [points, setPoints] = useState(0);
   const [total, setTotal] = useState(0);
@@ -41,7 +41,7 @@ export function GameApp() {
   const [picked, setPicked] = useState<number | null>(null);
   const [toast, setToast] = useState("");
 
-  const phase = PHASES[phaseIdx];
+  const phase = PHASES[phaseIdx]!;
   const unlocked = points >= phase.minPoints;
   const remaining = phase.challenges.filter((c) => !done.has(c.id));
   const maxPossible = points + remaining.reduce((s, c) => s + POINTS[c.kind], 0);

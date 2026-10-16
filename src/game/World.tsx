@@ -53,7 +53,7 @@ export function World({ phase, look, done, unlocked, paused, onNear }: Props) {
     const dt = Math.min(raw, 0.05);
     const p = player.current;
     if (!p) return;
-    const k = keys.current;
+    const k = keys.current as { [c: string]: boolean | undefined } & Partial<Record<"KeyW"|"KeyA"|"KeyS"|"KeyD"|"ArrowUp"|"ArrowDown"|"ArrowLeft"|"ArrowRight", boolean>>;
     const dir = new THREE.Vector3(
       (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0), 0,
       (k.KeyS || k.ArrowDown ? 1 : 0) - (k.KeyW || k.ArrowUp ? 1 : 0),
