@@ -28,7 +28,7 @@ export interface Phase {
 }
 
 export const POINTS: Record<Kind, number> = { problema: 100, colega: 70 };
-export const POSITIONS: [number, number][] = [[-7, -5], [7, -5], [0, -10], [0, 9.5], [-9, 4], [9, 4]];
+export const POSITIONS: [number, number][] = [[-9, -2], [9, -2], [-4.5, -10], [4.5, -10], [-8, 6], [8, 6]];
 
 export const PHASES: Phase[] = [
   {
