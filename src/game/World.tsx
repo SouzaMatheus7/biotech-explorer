@@ -186,7 +186,7 @@ function MicrobeCage({ color, unlocked }: { color: string; unlocked: boolean }) 
         );
       })}
       <Text position={[0, 3.3, 0]} fontSize={0.42} color="#1b2a3a" outlineWidth={0.03} outlineColor="#ffffff">
-        {unlocked ? "PEGUE O MICRÓBIO!" : "🔒 Micróbio trancado"}
+        {unlocked ? "PEGUE O MICRÓBIO!" : "Micróbio trancado"}
       </Text>
     </group>
   );
