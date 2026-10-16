@@ -38,52 +38,89 @@ export function GameApp() {
   const [done, setDone] = useState<Set<string>>(new Set());
   const [near, setNear] = useState<Target>(null);
   const [active, setActive] = useState<Challenge | null>(null);
+  const [order, setOrder] = useState<number[]>([0, 1, 2, 3]);
   const [picked, setPicked] = useState<number | null>(null);
   const [toast, setToast] = useState("");
+  const [lives, setLives] = useState(3);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [gained, setGained] = useState(0);
+  const [respawnKey, setRespawnKey] = useState(0);
 
   const phase = PHASES[phaseIdx]!;
   const unlocked = points >= phase.minPoints;
   const remaining = phase.challenges.filter((c) => !done.has(c.id));
-  const maxPossible = points + remaining.reduce((s, c) => s + POINTS[c.kind], 0);
+  const maxPossible = points + remaining.reduce((s, c) => s + POINTS[c.kind] + 30, 0);
 
-  const startPhase = (i: number) => { setPhaseIdx(i); setPoints(0); setDone(new Set()); setNear(null); setScreen("intro"); };
+  const startPhase = (i: number) => {
+    setPhaseIdx(i); setPoints(0); setDone(new Set()); setNear(null); setStreak(0);
+    setLives(PHASES[i]!.lives); setScreen("intro");
+  };
 
   const interact = useCallback(() => {
     if (screen !== "play" || active) return;
-    if (near?.type === "challenge") { setActive(phase.challenges.find((c) => c.id === near.id)!); setPicked(null); }
-    else if (near?.type === "microbe") {
+    if (near?.type === "challenge") {
+      const c = phase.challenges.find((x) => x.id === near.id)!;
+      setOrder([0, 1, 2, 3].sort(() => Math.random() - 0.5));
+      setActive(c); setPicked(null); setTimeLeft(phase.time);
+    } else if (near?.type === "microbe") {
       if (phaseIdx === PHASES.length - 1) setScreen("win");
       else startPhase(phaseIdx + 1);
     }
   }, [screen, active, near, phase, phaseIdx]);
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.code === "KeyE" || e.code === "Space" || e.code === "Enter") interact(); };
+    const h = (e: KeyboardEvent) => { if (e.code === "KeyE" || e.code === "Enter") interact(); };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [interact]);
 
+  const loseLife = (msg: string) => {
+    setLives((l) => l - 1); setStreak(0); setToast(msg);
+  };
+
   const answer = (i: number) => {
     if (!active || picked !== null) return;
     setPicked(i);
-    if (i === active.answer) { setPoints((p) => p + POINTS[active.kind]); setTotal((t) => t + POINTS[active.kind]); }
+    if (i === active.answer) {
+      const bonus = Math.round((timeLeft / phase.time) * 20) + (streak >= 1 ? 10 : 0);
+      const g = POINTS[active.kind] + bonus;
+      setGained(g); setPoints((p) => p + g); setTotal((t) => t + g); setStreak((s) => s + 1);
+    } else {
+      setGained(0); loseLife("Resposta errada! −1 vida");
+    }
   };
+
+  // question timer
+  useEffect(() => {
+    if (!active || picked !== null) return undefined;
+    if (timeLeft <= 0) { setPicked(-1); setGained(0); loseLife("Tempo esgotado! −1 vida"); return undefined; }
+    const t = setTimeout(() => setTimeLeft((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [active, picked, timeLeft]);
+
   const closeQuiz = () => {
     if (!active) return;
     setDone((d) => new Set(d).add(active.id));
     if (picked === active.answer && points >= phase.minPoints) setToast("Jaula aberta! Vá até o centro e roube o micróbio!");
     setActive(null);
   };
-  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3500); return () => clearTimeout(t); } return undefined; }, [toast]);
+  const onCaught = useCallback(() => {
+    loseLife("Pego por um drone! −1 vida");
+    setRespawnKey((k) => k + 1);
+  }, []);
+  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3000); return () => clearTimeout(t); } return undefined; }, [toast]);
 
   if (screen === "play" || screen === "intro") {
     const nearC = near?.type === "challenge" ? phase.challenges.find((c) => c.id === near.id) : null;
-    const failed = !unlocked && maxPossible < phase.minPoints;
+    const dead = lives <= 0;
+    const failed = dead || (!unlocked && maxPossible < phase.minPoints);
     return (
       <div className="fixed inset-0">
         <Canvas shadows camera={{ position: [0, 9, 14], fov: 55 }} dpr={[1, 2]}>
           <Suspense fallback={null}>
-            <World phase={phase} look={look} done={done} unlocked={unlocked} paused={!!active || screen !== "play"} onNear={setNear} />
+            <World phase={phase} look={look} done={done} unlocked={unlocked} respawnKey={respawnKey}
+              paused={!!active || screen !== "play" || failed} onNear={setNear} onCaught={onCaught} />
           </Suspense>
         </Canvas>
 
@@ -91,6 +128,10 @@ export function GameApp() {
           <div className="game-panel px-4 py-3">
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{phase.name}</div>
             <div className="text-sm font-semibold">{phase.theme}</div>
+            <div className="mt-1 text-lg" aria-label="vidas">
+              {Array.from({ length: phase.lives }).map((_, i) => <span key={i} className={i < lives ? "text-destructive" : "opacity-25"}>♥ </span>)}
+              {streak >= 2 && <span className="ml-2 text-sm font-bold text-primary">Combo x{streak}</span>}
+            </div>
           </div>
           <div className="game-panel min-w-56 px-4 py-3">
             <div className="flex justify-between text-sm font-bold"><span>Pontos</span><span>{points} / {phase.minPoints}</span></div>
@@ -108,7 +149,7 @@ export function GameApp() {
               {near?.type === "microbe" ? "Roubar micróbio! [E]" : nearC!.kind === "colega" ? `Ajudar ${nearC!.title.replace("Colega ", "")} [E]` : `Resolver: ${nearC!.title} [E]`}
             </button>
           )}
-          {screen === "play" && <div className="game-panel px-3 py-1 text-xs">WASD / setas para andar · E para interagir · ⭐ problema = {POINTS.problema} · 💗 colega = {POINTS.colega}</div>}
+          {screen === "play" && <div className="game-panel px-3 py-1 text-xs">WASD / setas · E interagir · fuja dos drones vermelhos · errar ou demorar custa 1 vida</div>}
           <MobilePad />
         </div>
 
@@ -116,26 +157,38 @@ export function GameApp() {
           <Overlay>
             <div className="text-xs font-bold uppercase tracking-widest text-primary">{phase.name}</div>
             <h2 className="mt-1 font-display text-3xl">{phase.theme}</h2>
+            <div className="mx-auto my-2 h-40 w-40"><MicrobePreview type={phase.microbeType} color={phase.microbe} /></div>
+            <p className="text-center text-sm font-bold italic">{phase.microbeName}</p>
             <p className="mt-3">{phase.story}</p>
-            <p className="mt-2 text-sm text-muted-foreground">Resolva situações-problema e ajude colegas. Faça pelo menos <b>{phase.minPoints} pontos</b> para abrir a jaula do micróbio.</p>
+            <ul className="mt-3 grid gap-1 text-sm text-muted-foreground">
+              <li>• Meta: <b>{phase.minPoints} pontos</b> para abrir a jaula</li>
+              <li>• <b>{phase.lives} vidas</b> · <b>{phase.time}s</b> por pergunta · <b>{phase.guards} drones</b></li>
+              <li>• Responda rápido e em sequência para ganhar bônus</li>
+            </ul>
             <button className="game-btn mt-6 w-full" onClick={() => setScreen("play")}>Começar fase</button>
           </Overlay>
         )}
 
         {active && (
           <Overlay>
-            <div className="text-xs font-bold uppercase tracking-widest text-primary">{active.kind === "colega" ? "💗 Ajude um colega" : "⭐ Situação-problema"} · +{POINTS[active.kind]}</div>
-            <h2 className="mt-1 font-display text-2xl">{active.title}</h2>
-            <p className="mt-3">{active.prompt}</p>
-            <div className="mt-4 grid gap-2">
-              {active.options.map((o, i) => {
-                const state = picked === null ? "" : i === active.answer ? "correct" : i === picked ? "wrong" : "dim";
-                return <button key={i} className={`game-option ${state}`} onClick={() => answer(i)}>{String.fromCharCode(65 + i)}) {o}</button>;
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold uppercase tracking-widest text-primary">{active.kind === "colega" ? "Ajude um colega" : "Situação-problema"} · +{POINTS[active.kind]}</div>
+              <div className={`font-display text-2xl ${timeLeft <= 5 ? "text-destructive" : ""}`}>{timeLeft}s</div>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full bg-primary transition-all duration-1000 ease-linear" style={{ width: `${(timeLeft / phase.time) * 100}%` }} />
+            </div>
+            <h2 className="mt-3 font-display text-2xl">{active.title}</h2>
+            <p className="mt-2">{active.prompt}</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {order.map((oi, pos) => {
+                const state = picked === null ? "" : oi === active.answer ? "correct" : oi === picked ? "wrong" : "dim";
+                return <button key={oi} className={`game-option ${state}`} onClick={() => answer(oi)}>{String.fromCharCode(65 + pos)}) {active.options[oi]}</button>;
               })}
             </div>
             {picked !== null && (
               <>
-                <p className="mt-4 rounded-xl bg-muted p-3 text-sm"><b>{picked === active.answer ? "Correto! " : "Ops! "}</b>{active.explain}</p>
+                <p className="mt-4 rounded-xl bg-muted p-3 text-sm"><b>{picked === active.answer ? `Correto! +${gained} ` : picked === -1 ? "Tempo esgotado! " : "Errado! "}</b>{active.explain}</p>
                 <button className="game-btn mt-4 w-full" onClick={closeQuiz}>Continuar</button>
               </>
             )}
@@ -144,8 +197,8 @@ export function GameApp() {
 
         {failed && !active && screen === "play" && (
           <Overlay>
-            <h2 className="font-display text-3xl">Pontos insuficientes</h2>
-            <p className="mt-2">Você não alcançou {phase.minPoints} pontos nesta fase. Tente de novo!</p>
+            <h2 className="font-display text-3xl">{dead ? "Sem vidas!" : "Pontos insuficientes"}</h2>
+            <p className="mt-2">{dead ? "A segurança te pegou. O micróbio continua trancado." : `Não dá mais para alcançar ${phase.minPoints} pontos nesta fase.`}</p>
             <button className="game-btn mt-6 w-full" onClick={() => { setTotal((t) => t - points); startPhase(phaseIdx); }}>Reiniciar fase</button>
             <button className="game-btn-ghost mt-2 w-full" onClick={() => setScreen("menu")}>Menu</button>
           </Overlay>
