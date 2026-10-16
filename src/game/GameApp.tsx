@@ -74,7 +74,7 @@ export function GameApp() {
     if (picked === active.answer && points >= phase.minPoints) setToast("Jaula aberta! Vá até o centro e roube o micróbio!");
     setActive(null);
   };
-  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3500); return () => clearTimeout(t); } }, [toast]);
+  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3500); return () => clearTimeout(t); } return undefined; }, [toast]);
 
   if (screen === "play" || screen === "intro") {
     const nearC = near?.type === "challenge" ? phase.challenges.find((c) => c.id === near.id) : null;
